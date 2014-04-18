@@ -1,7 +1,7 @@
 <?php namespace Illuminate\Routing;
 
+use Illuminate\Http\Request;
 use InvalidArgumentException;
-use Symfony\Component\HttpFoundation\Request;
 
 class UrlGenerator {
 
@@ -15,7 +15,7 @@ class UrlGenerator {
 	/**
 	 * The request instance.
 	 *
-	 * @var \Symfony\Component\HttpFoundation\Request
+	 * @var \Illuminate\Http\Request
 	 */
 	protected $request;
 
@@ -355,7 +355,7 @@ class UrlGenerator {
 	}
 
 	/**
-	 * Get the domain and scheme for the route.
+	 * Get the domain and schee for the route.
 	 *
 	 * @param  \Illuminate\Routing\Route  $route
 	 * @return string
@@ -373,7 +373,7 @@ class UrlGenerator {
 	 */
 	protected function addPortToDomain($domain)
 	{
-		if (in_array($this->request->getPort(), array('80', '443')))
+		if ($this->request->getPort() == '80')
 		{
 			return $domain;
 		}

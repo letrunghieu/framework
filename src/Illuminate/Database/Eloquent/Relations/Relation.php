@@ -94,16 +94,6 @@ abstract class Relation {
 	abstract public function getResults();
 
 	/**
-	 * Get the relationship for eager loading.
-	 *
-	 * @return \Illuminate\Database\Eloquent\Collection
-	 */
-	public function getEager()
-	{
-		return $this->get();
-	}
-
-	/**
 	 * Touch all of the related models for the relationship.
 	 *
 	 * @return void
@@ -113,16 +103,6 @@ abstract class Relation {
 		$column = $this->getRelated()->getUpdatedAtColumn();
 
 		$this->rawUpdate(array($column => $this->getRelated()->freshTimestampString()));
-	}
-
-	/**
-	 * Restore all of the soft deleted related models.
-	 *
-	 * @return int
-	 */
-	public function restore()
-	{
-		return $this->query->withTrashed()->restore();
 	}
 
 	/**

@@ -823,6 +823,28 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase {
 
 		$v = new Validator($trans, array('x' => 'http://google.com'), array('x' => 'Alpha'));
 		$this->assertFalse($v->passes());
+		
+		$v = new Validator($trans, array('x' => 'ユニコードを基盤技術と'), array('x' => 'Alpha'));
+		$this->assertTrue($v->passes());
+		
+		$v = new Validator($trans, array('x' => 'ユニコード を基盤技術と'), array('x' => 'Alpha'));
+		$this->assertFalse($v->passes());
+		
+		$v = new Validator($trans, array('x' => 'नमस्कार'), array('x' => 'Alpha'));
+		$this->assertTrue($v->passes());
+		
+		$v = new Validator($trans, array('x' => 'आपका स्वागत है'), array('x' => 'Alpha'));
+		$this->assertFalse($v->passes());
+		
+		$v = new Validator($trans, array('x' => 'Continuación'), array('x' => 'Alpha'));
+		$this->assertTrue($v->passes());
+		
+		$v = new Validator($trans, array('x' => 'ofreció su dimisión'), array('x' => 'Alpha'));
+		$this->assertFalse($v->passes());
+		
+		$v = new Validator($trans, array('x' => '❤'), array('x' => 'Alpha'));
+		$this->assertFalse($v->passes());
+		
 	}
 
 
@@ -834,6 +856,15 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase {
 
 		$v = new Validator($trans, array('x' => 'http://g232oogle.com'), array('x' => 'AlphaNum'));
 		$this->assertFalse($v->passes());
+		
+		$v = new Validator($trans, array('x' => '१२३'), array('x' => 'AlphaNum'));//numbers in Hindi
+		$this->assertTrue($v->passes());
+		
+		$v = new Validator($trans, array('x' => '٧٨٩'), array('x' => 'AlphaNum'));//eastern arabic numerals
+		$this->assertTrue($v->passes());
+		
+		$v = new Validator($trans, array('x' => 'नमस्कार'), array('x' => 'AlphaNum'));
+		$this->assertTrue($v->passes());
 	}
 
 
@@ -845,6 +876,13 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase {
 
 		$v = new Validator($trans, array('x' => 'http://-g232oogle.com'), array('x' => 'AlphaDash'));
 		$this->assertFalse($v->passes());
+		
+		$v = new Validator($trans, array('x' => 'नमस्कार-_'), array('x' => 'AlphaDash'));
+		$this->assertTrue($v->passes());
+		
+		$v = new Validator($trans, array('x' => '٧٨٩'), array('x' => 'AlphaDash'));//eastern arabic numerals
+		$this->assertTrue($v->passes());
+		
 	}
 
 
@@ -899,6 +937,19 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase {
 
 		$v = new Validator($trans, array('start' => '2012-01-01', 'ends' => '2000-01-01'), array('start' => 'Before:ends', 'ends' => 'After:start'));
 		$this->assertTrue($v->fails());
+	}
+
+
+	public function testBeforeAndAfterWithFormat()
+	{
+		date_default_timezone_set('UTC');
+		$trans = $this->getRealTranslator();
+
+		$v = new Validator($trans, array('x' => '02/04/2012'), array('x' => 'After:03/03/2012|Before:01/05/2012'));
+		$this->assertTrue($v->fails());
+
+		$v = new Validator($trans, array('x' => '02/04/2012'), array('x' => 'date_format:d/m/Y|After:03/03/2012|Before:01/05/2012'));
+		$this->assertTrue($v->passes());
 	}
 
 
@@ -983,17 +1034,6 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase {
 		$v = new Validator($trans, array(), array('implicit_rule' => 'foo'));
 		$v->addImplicitExtension('implicit_rule', function() { return true; });
 		$this->assertTrue($v->passes());
-	}
-
-
-	/**
-	 * @expectedException InvalidArgumentException
-	 */
-	public function testExceptionThrownOnIncorrectParameterCount()
-	{
-		$trans = $this->getTranslator();
-		$v = new Validator($trans, array(), array('foo' => 'required_if:foo'));
-		$v->passes();
 	}
 
 

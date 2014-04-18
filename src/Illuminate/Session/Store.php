@@ -306,20 +306,15 @@ class Store implements SessionInterface {
 	}
 
 	/**
-	 * Put a key / value pair or array of key / value pairs in the session.
+	 * Put a key / value pair in the session.
 	 *
-	 * @param  string|array  $key
-	 * @param  mixed|null  	 $value
+	 * @param  string  $key
+	 * @param  mixed   $value
 	 * @return void
 	 */
 	public function put($key, $value)
 	{
-		if ( ! is_array($key)) $key = array($key => $value);
-
-		foreach ($key as $arrayKey => $arrayValue)
-		{
-			$this->set($arrayKey, $arrayValue);
-		}
+		$this->set($key, $value);
 	}
 
 	/**

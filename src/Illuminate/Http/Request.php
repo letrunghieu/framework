@@ -102,7 +102,11 @@ class Request extends SymfonyRequest {
 	 */
 	public function segment($index, $default = null)
 	{
-		return array_get($this->segments(), $index - 1, $default);
+		$segments = explode('/', trim($this->getPathInfo(), '/'));
+
+		$segments = array_values(array_filter($segments));
+
+		return array_get($segments, $index - 1, $default);
 	}
 
 	/**
@@ -112,9 +116,9 @@ class Request extends SymfonyRequest {
 	 */
 	public function segments()
 	{
-		$segments = explode('/', $this->path());
+		$path = $this->path();
 
-		return array_values(array_filter($segments));
+		return $path == '/' ? array() : explode('/', $path);
 	}
 
 	/**
@@ -293,7 +297,7 @@ class Request extends SymfonyRequest {
 	{
 		if (is_array($file = $this->file($key))) $file = head($file);
 
-		return $file instanceof \SplFileInfo && $file->getPath() != '';
+		return $file instanceof \SplFileInfo;
 	}
 
 	/**

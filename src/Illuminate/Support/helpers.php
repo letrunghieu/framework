@@ -376,12 +376,11 @@ if ( ! function_exists('array_pull'))
 	 *
 	 * @param  array   $array
 	 * @param  string  $key
-	 * @param  mixed   $default
 	 * @return mixed
 	 */
-	function array_pull(&$array, $key, $default = null)
+	function array_pull(&$array, $key)
 	{
-		$value = array_get($array, $key, $default);
+		$value = array_get($array, $key);
 
 		array_forget($array, $key);
 

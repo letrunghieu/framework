@@ -158,23 +158,25 @@ class DatabaseEloquentBuilderTest extends PHPUnit_Framework_TestCase {
 	}
 
 
-	public function testWithDeletedProperlyRemovesDeletedClause()
+	public function testMacrosAreCalledOnBuilder()
 	{
+		unset($_SERVER['__test.builder']);
 		$builder = new Illuminate\Database\Eloquent\Builder(new Illuminate\Database\Query\Builder(
 			m::mock('Illuminate\Database\ConnectionInterface'),
 			m::mock('Illuminate\Database\Query\Grammars\Grammar'),
 			m::mock('Illuminate\Database\Query\Processors\Processor')
 		));
-		$builder->setModel($this->getMockModel());
-		$builder->getModel()->shouldReceive('getQualifiedDeletedAtColumn')->once()->andReturn('deleted_at');
+		$builder->macro('fooBar', function($builder)
+		{
+			$_SERVER['__test.builder'] = $builder;
 
-		$builder->getQuery()->whereNull('updated_at');
-		$builder->getQuery()->whereNull('deleted_at');
-		$builder->getQuery()->whereNull('foo_bar');
+			return $builder;
+		});
+		$result = $builder->fooBar();
 
-		$builder->withTrashed();
-
-		$this->assertEquals(2, count($builder->getQuery()->wheres));
+		$this->assertEquals($builder, $result);
+		$this->assertEquals($builder, $_SERVER['__test.builder']);
+		unset($_SERVER['__test.builder']);
 	}
 
 
@@ -262,7 +264,7 @@ class DatabaseEloquentBuilderTest extends PHPUnit_Framework_TestCase {
 		$relation = m::mock('stdClass');
 		$relation->shouldReceive('addEagerConstraints')->once()->with(array('models'));
 		$relation->shouldReceive('initRelation')->once()->with(array('models'), 'orders')->andReturn(array('models'));
-		$relation->shouldReceive('getEager')->once()->andReturn(array('results'));
+		$relation->shouldReceive('get')->once()->andReturn(array('results'));
 		$relation->shouldReceive('match')->once()->with(array('models'), array('results'), 'orders')->andReturn(array('models.matched'));
 		$builder->shouldReceive('getRelation')->once()->with('orders')->andReturn($relation);
 		$results = $builder->eagerLoadRelations(array('models'));
@@ -361,7 +363,7 @@ class DatabaseEloquentBuilderTest extends PHPUnit_Framework_TestCase {
 		$nestedRawQuery = $this->getMockQueryBuilder();
 		$nestedQuery->shouldReceive('getQuery')->once()->andReturn($nestedRawQuery);
 		$model = $this->getMockModel()->makePartial();
-		$model->shouldReceive('newQuery')->with(false)->once()->andReturn($nestedQuery);
+		$model->shouldReceive('newQueryWithoutScopes')->once()->andReturn($nestedQuery);
 		$builder = $this->getBuilder();
 		$builder->getQuery()->shouldReceive('from');
 		$builder->setModel($model);
@@ -380,6 +382,26 @@ class DatabaseEloquentBuilderTest extends PHPUnit_Framework_TestCase {
 		$query = $model->newQuery()->where('foo', '=', 'bar')->where(function($query) { $query->where('baz', '>', 9000); });
 		$this->assertEquals('select * from "table" where "table"."deleted_at" is null and "foo" = ? and ("baz" > ?)', $query->toSql());
 		$this->assertEquals(array('bar', 9000), $query->getBindings());
+	}
+
+
+	public function testSimpleWhere()
+	{
+		$builder = $this->getBuilder();
+		$builder->getQuery()->shouldReceive('where')->once()->with('foo', '=', 'bar');
+		$result = $builder->where('foo', '=', 'bar');
+		$this->assertEquals($result, $builder);
+	}
+
+
+	public function testDeleteOverride()
+	{
+		$builder = $this->getBuilder();
+		$builder->onDelete(function($builder)
+		{
+			return ['foo' => $builder];
+		});
+		$this->assertEquals(['foo' => $builder], $builder->delete());
 	}
 
 
@@ -429,9 +451,15 @@ class EloquentBuilderTestScopeStub extends Illuminate\Database\Eloquent\Model {
 	}
 }
 
+class EloquentBuilderTestWithTrashedStub extends Illuminate\Database\Eloquent\Model {
+	use Illuminate\Database\Eloquent\SoftDeletingTrait;
+	protected $table = 'table';
+	public function getKeyName() { return 'foo'; }
+}
+
 class EloquentBuilderTestNestedStub extends Illuminate\Database\Eloquent\Model {
 	protected $table = 'table';
-	protected $softDelete = true;
+	use Illuminate\Database\Eloquent\SoftDeletingTrait;
 }
 
 class EloquentBuilderTestListsStub {

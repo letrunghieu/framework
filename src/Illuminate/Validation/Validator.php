@@ -126,7 +126,6 @@ class Validator implements MessageProviderInterface {
 	 * @param  array  $data
 	 * @param  array  $rules
 	 * @param  array  $messages
-	 * @param  array $customAttributes
 	 * @return void
 	 */
 	public function __construct(TranslatorInterface $translator, $data, $rules, $messages = array(), $customAttributes = array())
@@ -389,6 +388,8 @@ class Validator implements MessageProviderInterface {
 	 *
 	 * Always returns true, just lets us put sometimes in rules.
 	 *
+	 * @param  string  $attribute
+	 * @param  mixed   $value
 	 * @return bool
 	 */
 	protected function validateSometimes()
@@ -560,8 +561,6 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateRequiredIf($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(2, $parameters, 'required_if');
-
 		if ($parameters[1] == array_get($this->data, $parameters[0]))
 		{
 			return $this->validateRequired($attribute, $value);
@@ -609,12 +608,10 @@ class Validator implements MessageProviderInterface {
 	 * @param  string  $attribute
 	 * @param  mixed   $value
 	 * @param  array   $parameters
-	 * @return bool
+	 * @return void
 	 */
 	protected function validateSame($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(1, $parameters, 'same');
-
 		$other = array_get($this->data, $parameters[0]);
 
 		return (isset($other) && $value == $other);
@@ -630,8 +627,6 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateDifferent($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(1, $parameters, 'different');
-
 		$other = $parameters[0];
 
 		return isset($this->data[$other]) && $value != $this->data[$other];
@@ -699,10 +694,7 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateDigits($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(1, $parameters, 'digits');
-
-		return $this->validateNumeric($attribute, $value)
-			&& strlen((string) $value) == $parameters[0];
+		return strlen((string) $value) == $parameters[0];
 	}
 
 	/**
@@ -715,8 +707,6 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateDigitsBetween($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(2, $parameters, 'digits_between');
-
 		$length = strlen((string) $value);
 
 		return $length >= $parameters[0] && $length <= $parameters[1];
@@ -732,8 +722,6 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateSize($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(1, $parameters, 'size');
-
 		return $this->getSize($attribute, $value) == $parameters[0];
 	}
 
@@ -747,8 +735,6 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateBetween($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(2, $parameters, 'between');
-
 		$size = $this->getSize($attribute, $value);
 
 		return $size >= $parameters[0] && $size <= $parameters[1];
@@ -764,8 +750,6 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateMin($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(1, $parameters, 'min');
-
 		return $this->getSize($attribute, $value) >= $parameters[0];
 	}
 
@@ -779,8 +763,6 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateMax($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(1, $parameters, 'max');
-
 		if ($value instanceof UploadedFile && ! $value->isValid()) return false;
 
 		return $this->getSize($attribute, $value) <= $parameters[0];
@@ -870,8 +852,6 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateUnique($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(1, $parameters, 'unique');
-
 		$table = $parameters[0];
 
 		// The second parameter position holds the name of the column that needs to
@@ -943,8 +923,6 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateExists($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(1, $parameters, 'exists');
-
 		$table = $parameters[0];
 
 		// The second parameter position holds the name of the column that should be
@@ -1105,7 +1083,7 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateAlpha($attribute, $value)
 	{
-		return preg_match('/^\pL+$/u', $value);
+		return preg_match('/^[\pL\pM]+$/u', $value);
 	}
 
 	/**
@@ -1117,7 +1095,7 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateAlphaNum($attribute, $value)
 	{
-		return preg_match('/^[\pL\pN]+$/u', $value);
+		return preg_match('/^[\pL\pM\pN]+$/u', $value);
 	}
 
 	/**
@@ -1129,7 +1107,7 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateAlphaDash($attribute, $value)
 	{
-		return preg_match('/^[\pL\pN_-]+$/u', $value);
+		return preg_match('/^[\pL\pM\pN_-]+$/u', $value);
 	}
 
 	/**
@@ -1142,8 +1120,6 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateRegex($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(1, $parameters, 'regex');
-
 		return preg_match($parameters[0], $value);
 	}
 
@@ -1175,8 +1151,6 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateDateFormat($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(1, $parameters, 'date_format');
-
 		$parsed = date_parse_from_format($parameters[0], $value);
 
 		return $parsed['error_count'] === 0 && $parsed['warning_count'] === 0;
@@ -1192,7 +1166,10 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateBefore($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(1, $parameters, 'before');
+		if ($format = $this->getDateFormat($attribute))
+		{
+			return $this->validateBeforeWithFormat($format, $value, $parameters);
+		}
 
 		if ( ! ($date = strtotime($parameters[0])))
 		{
@@ -1205,6 +1182,20 @@ class Validator implements MessageProviderInterface {
 	}
 
 	/**
+	 * Validate the date is before a given date with a given format.
+	 *
+	 * @param  string  $format
+	 * @param  mixed   $value
+	 * @param  array   $parameters
+	 * @return bool
+	 */
+	protected function validateBeforeWithFormat($format, $value, $parameters)
+	{
+		return DateTime::createFromFormat($format, $value) <
+               DateTime::createFromFormat($format, $parameters[0]);
+	}
+
+	/**
 	 * Validate the date is after a given date.
 	 *
 	 * @param  string  $attribute
@@ -1214,7 +1205,10 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function validateAfter($attribute, $value, $parameters)
 	{
-		$this->requireParameterCount(1, $parameters, 'after');
+		if ($format = $this->getDateFormat($attribute))
+		{
+			return $this->validateAfterWithFormat($format, $value, $parameters);
+		}
 
 		if ( ! ($date = strtotime($parameters[0])))
 		{
@@ -1223,6 +1217,34 @@ class Validator implements MessageProviderInterface {
 		else
 		{
 			return strtotime($value) > $date;
+		}
+	}
+
+	/**
+	 * Validate the date is after a given date with a given format.
+	 *
+	 * @param  string  $format
+	 * @param  mixed   $value
+	 * @param  array   $parameters
+	 * @return bool
+	 */
+	protected function validateAfterWithFormat($format, $value, $parameters)
+	{
+		return DateTime::createFromFormat($format, $value) >
+               DateTime::createFromFormat($format, $parameters[0]);
+	}
+
+	/**
+	 * Get the date format for an attribute if it has one.
+	 *
+	 * @param  string $attribute
+	 * @return string|null
+	 */
+	protected function getDateFormat($attribute)
+	{
+		if ($result = $this->getRule($attribute, 'DateFormat'))
+		{
+			return $result[1][0];
 		}
 	}
 
@@ -1712,24 +1734,31 @@ class Validator implements MessageProviderInterface {
 	 * Determine if the given attribute has a rule in the given set.
 	 *
 	 * @param  string  $attribute
-	 * @param  array   $rules
+	 * @param  string|array  $rules
 	 * @return bool
 	 */
 	protected function hasRule($attribute, $rules)
 	{
+		return ! is_null($this->getRule($attribute, $rules));
+	}
+
+	/**
+	 * Get a rule and its parameters for a given attribute.
+	 *
+	 * @param  string  $attribute
+	 * @param  string|array  $rules
+	 * @return array|null
+	 */
+	protected function getRule($attribute, $rules)
+	{
 		$rules = (array) $rules;
 
-		// To determine if the attribute has a rule in the ruleset, we will spin
-		// through each of the rules assigned to the attribute and parse them
-		// all, then check to see if the parsed rules exists in the arrays.
 		foreach ($this->rules[$attribute] as $rule)
 		{
 			list($rule, $parameters) = $this->parseRule($rule);
 
-			if (in_array($rule, $rules)) return true;
+			if (in_array($rule, $rules)) return [$rule, $parameters];
 		}
-
-		return false;
 	}
 
 	/**
@@ -2032,7 +2061,7 @@ class Validator implements MessageProviderInterface {
 	/**
 	 * Get the fallback messages for the validator.
 	 *
-	 * @return array
+	 * @return void
 	 */
 	public function getFallbackMessages()
 	{
@@ -2178,23 +2207,6 @@ class Validator implements MessageProviderInterface {
 		list($class, $method) = explode('@', $callback);
 
 		return call_user_func_array(array($this->container->make($class), $method), array_slice(func_get_args(), 1));
-	}
-
-	/**
-	 * Require a certain number of parameters to be present.
-	 *
-	 * @param  int    $count
-	 * @param  array  $parameters
-	 * @param  string $rule
-	 * @return void
-	 * @throws \InvalidArgumentException
-	 */
-	protected function requireParameterCount($count, $parameters, $rule)
-	{
-		if (count($parameters) < $count)
-		{
-			throw new \InvalidArgumentException("Validation rule $rule requires at least $count parameters.");
-		}
 	}
 
 	/**

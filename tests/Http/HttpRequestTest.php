@@ -61,26 +61,15 @@ class HttpRequestTest extends PHPUnit_Framework_TestCase {
 		);
 	}
 
-	/**
-	 * @dataProvider segmentsProvider
-	 */
-	public function testSegmentsMethod($path, $expected)
+	public function testSegmentsMethod()
 	{
-		$request = Request::create($path, 'GET');
-		$this->assertEquals($expected, $request->segments());
+		$request = Request::create('', 'GET');
+		$this->assertEquals(array(), $request->segments());
 
 		$request = Request::create('foo/bar', 'GET');
 		$this->assertEquals(array('foo', 'bar'), $request->segments());
 	}
 
-	public function segmentsProvider()
-	{
-		return array(
-			array('', array()),
-			array('foo/bar', array('foo', 'bar')),
-			array('foo/bar//baz', array('foo', 'bar', 'baz'))
-		);
-	}
 
 	public function testUrlMethod()
 	{
