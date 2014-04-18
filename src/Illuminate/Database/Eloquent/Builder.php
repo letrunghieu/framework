@@ -91,6 +91,8 @@ class Builder {
 	 */
 	public function findMany($id, $columns = array('*'))
 	{
+		if (empty($id)) return new Collection;
+
 		$this->query->whereIn($this->model->getKeyName(), $id);
 
 		return $this->get($columns);
@@ -281,6 +283,29 @@ class Builder {
 		$this->query->forPage($page, $perPage);
 
 		return $paginator->make($this->get($columns)->all(), $total, $perPage);
+	}
+
+	/**
+	 * Get a paginator only supporting simple next and previous links.
+	 *
+	 * This is more efficient on larger data-sets, etc.
+	 *
+	 * @param  \Illuminate\Pagination\Factory  $paginator
+	 * @param  int    $perPage
+	 * @param  array  $columns
+	 * @return \Illuminate\Pagination\Paginator
+	 */
+	public function simplePaginate($perPage = null, $columns = array('*'))
+	{
+		$paginator = $this->query->getConnection()->getPaginator();
+
+		$page = $paginator->getCurrentPage();
+
+		$perPage = $perPage ?: $this->model->getPerPage();
+
+		$this->query->skip(($page - 1) * $perPage)->take($perPage + 1);
+
+		return $paginator->make($this->get($columns)->all(), $perPage);
 	}
 
 	/**
@@ -522,7 +547,7 @@ class Builder {
 	{
 		$dots = str_contains($name, '.');
 
-		return $dots && starts_with($name, $relation) && $name != $relation;
+		return $dots && starts_with($name, $relation.'.');
 	}
 
 	/**
@@ -640,6 +665,11 @@ class Builder {
 	protected function addHasWhere(Builder $hasQuery, Relation $relation, $operator, $count, $boolean)
 	{
 		$this->mergeWheresToHas($hasQuery, $relation);
+
+		if (is_numeric($count))
+		{
+			$count = new Expression($count);
+		}
 
 		return $this->where(new Expression('('.$hasQuery->toSql().')'), $operator, $count, $boolean);
 	}

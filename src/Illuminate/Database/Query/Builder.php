@@ -480,10 +480,9 @@ class Builder {
 	 *
 	 * @param  string  $column
 	 * @param  array   $values
-	 * @param  bool  $not
 	 * @return \Illuminate\Database\Query\Builder|static
 	 */
-	public function orWhereBetween($column, array $values, $not = false)
+	public function orWhereBetween($column, array $values)
 	{
 		return $this->whereBetween($column, $values, 'or');
 	}
@@ -782,6 +781,67 @@ class Builder {
 	public function orWhereNotNull($column)
 	{
 		return $this->whereNotNull($column, 'or');
+	}
+
+	/**
+	 * Add a "where day" statement to the query.
+	 *
+	 * @param  string  $column
+	 * @param  string   $operator
+	 * @param  int   $value
+	 * @param  string   $boolean
+	 * @return \Illuminate\Database\Query\Builder|static
+	 */
+	public function whereDay($column, $operator, $value, $boolean = 'and')
+	{
+		return $this->addDateBasedWhere('Day', $column, $operator, $value, $boolean);
+	}
+
+	/**
+	 * Add a "where month" statement to the query.
+	 *
+	 * @param  string  $column
+	 * @param  string   $operator
+	 * @param  int   $value
+	 * @param  string   $boolean
+	 * @return \Illuminate\Database\Query\Builder|static
+	 */
+	public function whereMonth($column, $operator, $value, $boolean = 'and')
+	{
+		return $this->addDateBasedWhere('Month', $column, $operator, $value, $boolean);
+	}
+
+	/**
+	 * Add a "where year" statement to the query.
+	 *
+	 * @param  string  $column
+	 * @param  string   $operator
+	 * @param  int   $value
+	 * @param  string   $boolean
+	 * @return \Illuminate\Database\Query\Builder|static
+	 */
+	public function whereYear($column, $operator, $value, $boolean = 'and')
+	{
+		return $this->addDateBasedWhere('Year', $column, $operator, $value, $boolean);
+	}
+
+	/**
+	 * Add a date based (year, month, day) statement to the query.
+	 *
+	 * @param  string  $type
+	 * @param  string  $column
+	 * @param  string  $operator
+	 * @param  int  $value
+	 * @param  string  $boolean
+	 * @return \Illuminate\Database\Query\Builder|static
+	 */
+	protected function addDateBasedWhere($type, $column, $operator, $value, $boolean = 'and')
+	{
+		$this->wheres[] = compact('column', 'type', 'boolean', 'operator', 'value');
+
+		$this->bindings[] = $value;
+
+		return $this;
 	}
 
 	/**
@@ -1507,6 +1567,28 @@ class Builder {
 	}
 
 	/**
+	 * Get a paginator only supporting simple next and previous links.
+	 *
+	 * This is more efficient on larger data-sets, etc.
+	 *
+	 * @param  int    $perPage
+	 * @param  array  $columns
+	 * @return \Illuminate\Pagination\Paginator
+	 */
+	public function simplePaginate($perPage = null, $columns = array('*'))
+	{
+		$paginator = $this->connection->getPaginator();
+
+		$page = $paginator->getCurrentPage();
+
+		$perPage = $perPage ?: $this->model->getPerPage();
+
+		$this->skip(($page - 1) * $perPage)->take($perPage + 1);
+
+		return $paginator->make($this->get($columns), $perPage);
+	}
+
+	/**
 	 * Determine if any rows exist for the current query.
 	 *
 	 * @return bool
@@ -1524,7 +1606,7 @@ class Builder {
 	 */
 	public function count($column = '*')
 	{
-		return $this->aggregate(__FUNCTION__, array($column));
+		return (int) $this->aggregate(__FUNCTION__, array($column));
 	}
 
 	/**
@@ -1591,7 +1673,7 @@ class Builder {
 
 		if (isset($results[0]))
 		{
-			$result = (array) $results[0];
+			$result = array_change_key_case((array) $results[0]);
 
 			return $result['aggregate'];
 		}

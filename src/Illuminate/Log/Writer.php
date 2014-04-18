@@ -5,6 +5,8 @@ use Illuminate\Events\Dispatcher;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger as MonologLogger;
 use Monolog\Handler\RotatingFileHandler;
+use Illuminate\Support\Contracts\JsonableInterface;
+use Illuminate\Support\Contracts\ArrayableInterface;
 
 class Writer {
 
@@ -59,7 +61,7 @@ class Writer {
 	 * Call Monolog with the given method and parameters.
 	 *
 	 * @param  string  $method
-	 * @param  array  $parameters
+	 * @param  mixed   $parameters
 	 * @return mixed
 	 */
 	protected function callMonolog($method, $parameters)
@@ -196,7 +198,8 @@ class Writer {
 	 * Fires a log event.
 	 *
 	 * @param  string  $level
-	 * @param  array   $parameters
+	 * @param  string  $message
+	 * @param  array   $context
 	 * @return void
 	 */
 	protected function fireLogEvent($level, $message, array $context = array())
@@ -227,13 +230,15 @@ class Writer {
 	 * Dynamically handle error additions.
 	 *
 	 * @param  string  $method
-	 * @param  array   $parameters
+	 * @param  mixed   $parameters
 	 * @return mixed
 	 *
 	 * @throws \BadMethodCallException
 	 */
 	public function __call($method, $parameters)
 	{
+		$this->formatParameters($parameters);
+
 		if (in_array($method, $this->levels))
 		{
 			call_user_func_array(array($this, 'fireLogEvent'), array_merge(array($method), $parameters));
@@ -244,6 +249,31 @@ class Writer {
 		}
 
 		throw new \BadMethodCallException("Method [$method] does not exist.");
+	}
+
+	/**
+	 * Format the parameters for the logger.
+	 *
+	 * @param  mixed  $parameters
+	 * @return void
+	 */
+	protected function formatParameters(&$parameters)
+	{
+		if (isset($parameters[0]))
+		{
+			if (is_array($parameters[0]))
+			{
+				$parameters[0] = var_export($parameters[0], true);
+			}
+			elseif ($parameters[0] instanceof JsonableInterface)
+			{
+				$parameters[0] = $parameters[0]->toJson();
+			}
+			elseif ($parameters[0] instanceof ArrayableInterface)
+			{
+				$parameters[0] = var_export($parameters[0]->toArray(), true);
+			}
+		}
 	}
 
 }

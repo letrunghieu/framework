@@ -12,7 +12,14 @@ class BladeCompiler extends Compiler implements CompilerInterface {
 	protected $extensions = array();
 
 	/**
-	 * Array of opening and closing tags for echos.
+	 * The file currently being compiled.
+	 *
+	 * @var string
+	 */
+	protected $path;
+
+	/**
+	 * Array of opening and closing tags for escaped echos.
 	 *
 	 * @var array
 	 */
@@ -38,16 +45,42 @@ class BladeCompiler extends Compiler implements CompilerInterface {
 	 * @param  string  $path
 	 * @return void
 	 */
-	public function compile($path)
+	public function compile($path = null)
 	{
 		$this->footer = array();
+
+		if ($path)
+		{
+			$this->setPath($path);
+		}
 
 		$contents = $this->compileString($this->files->get($path));
 
 		if ( ! is_null($this->cachePath))
 		{
-			$this->files->put($this->getCompiledPath($path), $contents);
+			$this->files->put($this->getCompiledPath($this->getPath()), $contents);
 		}
+	}
+
+	/**
+	 * Get the path currently being compiled.
+	 *
+	 * @return string
+	 */
+	public function getPath()
+	{
+		return $this->path;
+	}
+
+	/**
+	 * Set the path currently being compiled.
+	 *
+	 * @param string $path
+	 * @return void
+	 */
+	public function setPath($path)
+	{
+		$this->path = $path;
 	}
 
 	/**
@@ -361,6 +394,17 @@ class BladeCompiler extends Compiler implements CompilerInterface {
 	}
 
 	/**
+	 * Compile the for statements into valid PHP.
+	 *
+	 * @param string  $expression
+	 * @return string
+	 */
+	protected function compileFor($expression)
+	{
+		return "<?php for{$expression}: ?>";
+	}
+
+	/**
 	 * Compile the foreach statements into valid PHP.
 	 *
 	 * @param string  $expression
@@ -413,6 +457,17 @@ class BladeCompiler extends Compiler implements CompilerInterface {
 	protected function compileEndwhile($expression)
 	{
 		return "<?php endwhile; ?>";
+	}
+
+	/**
+	 * Compile the end-for statements into valid PHP.
+	 *
+	 * @param string  $expression
+	 * @return string
+	 */
+	protected function compileEndfor($expression)
+	{
+		return "<?php endfor; ?>";
 	}
 
 	/**
@@ -471,6 +526,39 @@ class BladeCompiler extends Compiler implements CompilerInterface {
 		}
 
 		return "<?php echo \$__env->make($expression, array_except(get_defined_vars(), array('__data', '__path')))->render(); ?>";
+	}
+
+	/**
+	 * Compile the stack statements into the content
+	 *
+	 * @param  string $expression
+	 * @return string
+	 */
+	protected function compileStack($expression)
+	{
+		return "<?php echo \$__env->yieldContent{$expression}; ?>";
+	}
+
+	/**
+	 * Compile the push statements into valid PHP.
+	 *
+	 * @param $expression
+	 * @return string
+	 */
+	protected function compilePush($expression)
+	{
+		return "<?php \$__env->startSection{$expression}; ?>";
+	}
+
+	/**
+	 * Compile the endpush statements into valid PHP.
+	 *
+	 * @param $expression
+	 * @return string
+	 */
+	protected function compileEndpush($expression)
+	{
+		return "<?php \$__env->appendSection(); ?>";
 	}
 
 	/**

@@ -257,6 +257,29 @@ class ViewFactoryTest extends PHPUnit_Framework_TestCase {
 	}
 
 
+	public function testSingleStackPush()
+	{
+		$factory = $this->getFactory();
+		$factory->startSection('foo');
+		echo 'hi';
+		$factory->appendSection();
+		$this->assertEquals('hi', $factory->yieldContent('foo'));
+	}
+
+
+	public function testMultipleStackPush()
+	{
+		$factory = $this->getFactory();
+		$factory->startSection('foo');
+		echo 'hi';
+		$factory->appendSection();
+		$factory->startSection('foo');
+		echo ', Hello!';
+		$factory->appendSection();
+		$this->assertEquals('hi, Hello!', $factory->yieldContent('foo'));
+	}
+
+
 	public function testSessionAppending()
 	{
 		$factory = $this->getFactory();

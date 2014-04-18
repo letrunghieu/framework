@@ -53,6 +53,24 @@ class ViewBladeCompilerTest extends PHPUnit_Framework_TestCase {
 	}
 
 
+	public function testCompileCompilesAndGetThePath()
+	{
+		$compiler = new BladeCompiler($files = $this->getFiles(), __DIR__);
+		$files->shouldReceive('get')->once()->with('foo')->andReturn('Hello World');
+		$files->shouldReceive('put')->once()->with(__DIR__.'/'.md5('foo'), 'Hello World');
+		$compiler->compile('foo');
+		$this->assertEquals('foo', $compiler->getPath());
+	}
+
+
+	public function testCompileSetAndGetThePath()
+	{
+		$compiler = new BladeCompiler($files = $this->getFiles(), __DIR__);
+		$compiler->setPath('foo');
+		$this->assertEquals('foo', $compiler->getPath());
+	}
+
+
 	public function testCompileDoesntStoreFilesWhenCachePathIsNull()
 	{
 		$compiler = new BladeCompiler($files = $this->getFiles(), null);
@@ -137,6 +155,7 @@ class ViewBladeCompilerTest extends PHPUnit_Framework_TestCase {
 		}}}'));
 	}
 
+
 	public function testExtendsAreCompiled()
 	{
 		$compiler = new BladeCompiler($this->getFiles(), __DIR__);
@@ -149,6 +168,28 @@ test';
 		$compiler = new BladeCompiler($this->getFiles(), __DIR__);
 		$string = '@extends(name(foo))'.PHP_EOL.'test';
 		$expected = "test".PHP_EOL.'<?php echo $__env->make(name(foo), array_except(get_defined_vars(), array(\'__data\', \'__path\')))->render(); ?>';
+		$this->assertEquals($expected, $compiler->compileString($string));
+	}
+
+
+	public function testPushIsCompiled()
+	{
+		$compiler = new BladeCompiler($this->getFiles(), __DIR__);
+		$string = '@push(\'foo\')
+test
+@endpush';
+		$expected = '<?php $__env->startSection(\'foo\'); ?>
+test
+<?php $__env->appendSection(); ?>';
+		$this->assertEquals($expected, $compiler->compileString($string));
+	}
+
+
+	public function testStackIsCompiled()
+	{
+		$compiler = new BladeCompiler($this->getFiles(), __DIR__);
+		$string = '@stack(\'foo\')';;
+		$expected = '<?php echo $__env->yieldContent(\'foo\'); ?>';
 		$this->assertEquals($expected, $compiler->compileString($string));
 	}
 

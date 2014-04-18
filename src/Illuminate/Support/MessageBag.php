@@ -253,7 +253,7 @@ class MessageBag implements ArrayableInterface, Countable, JsonableInterface, Me
 	 */
 	public function count()
 	{
-		return count($this->messages);
+		return count($this->messages, COUNT_RECURSIVE) - count($this->messages);
 	}
 
 	/**
