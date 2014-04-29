@@ -109,7 +109,7 @@ class HasManyThrough extends Relation {
 	 *
 	 * @param  array   $models
 	 * @param  string  $relation
-	 * @return void
+	 * @return array
 	 */
 	public function initRelation(array $models, $relation)
 	{
@@ -236,7 +236,7 @@ class HasManyThrough extends Relation {
 	}
 
 	/**
-	 * Get the key for comparing against the pareny key in "has" query.
+	 * Get the key for comparing against the parent key in "has" query.
 	 *
 	 * @return string
 	 */
