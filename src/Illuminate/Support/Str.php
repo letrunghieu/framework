@@ -31,7 +31,7 @@ class Str {
 	/**
 	 * Determine if a given string contains a given substring.
 	 *
-	 * @param  string        $haystack
+	 * @param  string  $haystack
 	 * @param  string|array  $needles
 	 * @return bool
 	 */
@@ -48,8 +48,8 @@ class Str {
 	/**
 	 * Determine if a given string ends with a given substring.
 	 *
-	 * @param string $haystack
-	 * @param string|array $needles
+	 * @param string  $haystack
+	 * @param string|array  $needles
 	 * @return bool
 	 */
 	public static function endsWith($haystack, $needles)
@@ -261,7 +261,7 @@ class Str {
 	{
 		$title = static::ascii($title);
 
-		// Convert all dashes/undescores into separator
+		// Convert all dashes/underscores into separator
 		$flip = $separator == '-' ? '_' : '-';
 
 		$title = preg_replace('!['.preg_quote($flip).']+!u', $separator, $title);

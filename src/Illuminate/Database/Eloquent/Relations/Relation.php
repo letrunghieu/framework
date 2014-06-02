@@ -133,7 +133,7 @@ abstract class Relation {
 	}
 
 	/**
-	 * Run a callback with constrains disabled on the relation.
+	 * Run a callback with constraints disabled on the relation.
 	 *
 	 * @param  \Closure  $callback
 	 * @return mixed
@@ -161,11 +161,11 @@ abstract class Relation {
 	 */
 	protected function getKeys(array $models, $key = null)
 	{
-		return array_values(array_map(function($value) use ($key)
+		return array_unique(array_values(array_map(function($value) use ($key)
 		{
 			return $key ? $value->getAttribute($key) : $value->getKey();
 
-		}, $models));
+		}, $models)));
 	}
 
 	/**

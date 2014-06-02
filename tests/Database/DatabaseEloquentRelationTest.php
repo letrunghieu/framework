@@ -26,6 +26,11 @@ class DatabaseEloquentRelationTest extends PHPUnit_Framework_TestCase {
 
 		$relation->touch();
 	}
+	
+	public function testEagerLoadWithRelation()
+	{
+		var_dump(ModelOne::with('ModelTwo')->getQuery()->toSql());
+	}
 
 }
 
@@ -40,4 +45,20 @@ class EloquentRelationResetStub extends Illuminate\Database\Eloquent\Builder {
 
 class EloquentRelationQueryStub extends Illuminate\Database\Query\Builder {
 	public function __construct() {}
+}
+
+class ModelOne extends Illuminate\Database\Eloquent\Model
+{
+	public function ModelTwo()
+	{
+		return $this->belongsTo('ModelTwo');
+	}
+}
+
+class ModelTwo extends Illuminate\Database\Eloquent\Model
+{
+	public function ModelOne()
+	{
+		return $this->hasMany('ModelOne');
+	}
 }

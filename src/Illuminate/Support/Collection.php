@@ -318,6 +318,18 @@ class Collection implements ArrayAccess, ArrayableInterface, Countable, Iterator
 	}
 
 	/**
+	 * Pulls an item from the collection.
+	 *
+	 * @param  mixed  $key
+	 * @param  mixed  $default
+	 * @return mixed
+	 */
+	public function pull($key, $default = null)
+	{
+		return array_pull($this->items, $key, $default);
+	}
+
+	/**
 	 * Put an item in the collection by key.
 	 *
 	 * @param  mixed  $key
@@ -341,18 +353,18 @@ class Collection implements ArrayAccess, ArrayableInterface, Countable, Iterator
 		return array_reduce($this->items, $callback, $initial);
 	}
 
-    /**
-     * Get one or more items randomly from the collection.
-     *
-     * @param  int $amount
-     * @return mixed
-     */
-    public function random($amount = 1)
-    {
-        $keys = array_rand($this->items, $amount);
+	/**
+	 * Get one or more items randomly from the collection.
+	 *
+	 * @param  int $amount
+	 * @return mixed
+	 */
+	public function random($amount = 1)
+	{
+		$keys = array_rand($this->items, $amount);
 
-        return is_array($keys) ? array_intersect_key($this->items, array_flip($keys)) : $this->items[$keys];
-    }
+		return is_array($keys) ? array_intersect_key($this->items, array_flip($keys)) : $this->items[$keys];
+	}
 
 	/**
 	 * Reverse items order.
@@ -362,6 +374,18 @@ class Collection implements ArrayAccess, ArrayableInterface, Countable, Iterator
 	public function reverse()
 	{
 		return new static(array_reverse($this->items));
+	}
+
+	/**
+	 * Search the collection for a given value and return the corresponding key if successful.
+	 *
+	 * @param  mixed  $value
+	 * @param  bool   $strict
+	 * @return mixed
+	 */
+	public function search($value, $strict = false)
+	{
+		return array_search($value, $this->items, $strict);
 	}
 
 	/**
@@ -562,7 +586,7 @@ class Collection implements ArrayAccess, ArrayableInterface, Countable, Iterator
 	{
 		return function($item) use ($value)
 		{
-			return is_object($item) ? $item->{$value} : array_get($item, $value);
+			return data_get($item, $value);
 		};
 	}
 
@@ -699,7 +723,7 @@ class Collection implements ArrayAccess, ArrayableInterface, Countable, Iterator
   	 * @param  \Illuminate\Support\Collection|\Illuminate\Support\Contracts\ArrayableInterface|array  $items
 	 * @return array
 	 */
-	private function getArrayableItems($items)
+	protected function getArrayableItems($items)
 	{
 		if ($items instanceof Collection)
 		{

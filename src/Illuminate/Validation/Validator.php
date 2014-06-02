@@ -83,6 +83,13 @@ class Validator implements MessageProviderInterface {
 	protected $customAttributes = array();
 
 	/**
+	 * The array of custom displayabled values.
+	 *
+	 * @var array
+	 */
+	protected $customValues = array();
+
+	/**
 	 * All of the custom validator extensions.
 	 *
 	 * @var array
@@ -437,6 +444,10 @@ class Validator implements MessageProviderInterface {
 			return false;
 		}
 		elseif (is_string($value) && trim($value) === '')
+		{
+			return false;
+		}
+		elseif (is_array($value) && count($value) < 1)
 		{
 			return false;
 		}
@@ -1118,7 +1129,7 @@ class Validator implements MessageProviderInterface {
 	{
 		if ( ! $value instanceof File)
 		{
-			return true;
+			return false;
 		}
 
 		// The Symfony File class should do a decent job of guessing the extension
@@ -1520,7 +1531,33 @@ class Validator implements MessageProviderInterface {
 		// used as default versions of the attribute's displayable names.
 		else
 		{
-			return str_replace('_', ' ', $attribute);
+			return str_replace('_', ' ', snake_case($attribute));
+		}
+	}
+
+	/**
+	 * Get the displayable name of the value.
+	 *
+	 * @param  string $attribute
+	 * @param  mixed  $value
+	 * @return string
+	 */
+	public function getDisplayableValue($attribute, $value)
+	{
+		if (isset($this->customValues[$attribute][$value]))
+		{
+			return $this->customValues[$attribute][$value];
+		}
+
+		$key = "validation.values.{$attribute}.{$value}";
+
+		if (($line = $this->translator->trans($key)) !== $key)
+		{
+			return $line;
+		}
+		else
+		{
+			return $value;
 		}
 	}
 
@@ -1619,6 +1656,11 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function replaceIn($message, $attribute, $rule, $parameters)
 	{
+		foreach ($parameters as &$parameter)
+		{
+			$parameter = $this->getDisplayableValue($attribute, $parameter);
+		}
+
 		return str_replace(':values', implode(', ', $parameters), $message);
 	}
 
@@ -1633,6 +1675,11 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function replaceNotIn($message, $attribute, $rule, $parameters)
 	{
+		foreach ($parameters as &$parameter)
+		{
+			$parameter = $this->getDisplayableValue($attribute, $parameter);
+		}
+
 		return str_replace(':values', implode(', ', $parameters), $message);
 	}
 
@@ -1709,11 +1756,11 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function replaceRequiredIf($message, $attribute, $rule, $parameters)
 	{
-		$other = $this->getAttribute($parameters[0]);
+		$parameters[1] = $this->getDisplayableValue($parameters[0], $parameters[1]);
 
-		$replace = array($other, implode(' / ', array_slice($parameters, 1)));
+		$parameters[0] = $this->getAttribute($parameters[0]);
 
-		return str_replace(array(':other', ':value'), $replace, $message);
+		return str_replace(array(':other', ':value'), $parameters, $message);
 	}
 
 	/**
@@ -1769,7 +1816,7 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function replaceBefore($message, $attribute, $rule, $parameters)
 	{
-		if ( ! ($date = strtotime($parameters[0])))
+		if ( ! (strtotime($parameters[0])))
 		{
 			return str_replace(':date', $this->getAttribute($parameters[0]), $message);
 		}
@@ -1790,7 +1837,7 @@ class Validator implements MessageProviderInterface {
 	 */
 	protected function replaceAfter($message, $attribute, $rule, $parameters)
 	{
-		if ( ! ($date = strtotime($parameters[0])))
+		if ( ! (strtotime($parameters[0])))
 		{
 			return str_replace(':date', $this->getAttribute($parameters[0]), $message);
 		}
