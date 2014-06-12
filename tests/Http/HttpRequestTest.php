@@ -51,6 +51,7 @@ class HttpRequestTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($expected, $request->segment($segment, 'default'));
 	}
 
+
 	public function segmentProvider()
 	{
 		return array(
@@ -61,13 +62,27 @@ class HttpRequestTest extends PHPUnit_Framework_TestCase {
 		);
 	}
 
-	public function testSegmentsMethod()
+	/**
+	 * @dataProvider segmentsProvider
+	 */
+	public function testSegmentsMethod($path, $expected)
 	{
-		$request = Request::create('', 'GET');
-		$this->assertEquals(array(), $request->segments());
+		$request = Request::create($path, 'GET');
+		$this->assertEquals($expected, $request->segments());
 
 		$request = Request::create('foo/bar', 'GET');
 		$this->assertEquals(array('foo', 'bar'), $request->segments());
+	}
+
+
+	public function segmentsProvider()
+	{
+		return array(
+			array('', array()),
+			array('foo/bar', array('foo', 'bar')),
+			array('foo/bar//baz', array('foo', 'bar', 'baz')),
+			array('foo/0/bar', array('foo', '0', 'bar'))
+		);
 	}
 
 
@@ -277,6 +292,7 @@ class HttpRequestTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($payload, $data);
 	}
 
+
 	public function testJSONEmulatingPHPBuiltInServer()
 	{
 		$payload = array('name' => 'taylor');
@@ -291,7 +307,6 @@ class HttpRequestTest extends PHPUnit_Framework_TestCase {
 		$data = $request->all();
 		$this->assertEquals($payload, $data);
 	}
-
 
 
 	public function testAllInputReturnsInputAndFiles()

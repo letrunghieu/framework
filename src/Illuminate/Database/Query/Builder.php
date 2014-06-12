@@ -214,11 +214,53 @@ class Builder {
 	 * Add a new "raw" select expression to the query.
 	 *
 	 * @param  string  $expression
+	 * @param  array   $bindings
 	 * @return \Illuminate\Database\Query\Builder|static
 	 */
-	public function selectRaw($expression)
+	public function selectRaw($expression, array $bindings = array())
 	{
-		return $this->select(new Expression($expression));
+		$this->addSelect(new Expression($expression));
+
+		if ($bindings)
+		{
+			$this->addBinding($bindings, 'select');
+		}
+
+		return $this;
+	}
+
+	/**
+	 * Add a subselect expression to the query.
+	 *
+	 * @param  \Closure|\Illuminate\Database\Query\Builder|string $query
+	 * @param  string  $as
+	 * @return \Illuminate\Database\Query\Builder|static
+	 */
+	public function selectSub($query, $as)
+	{
+		if ($query instanceof Closure)
+		{
+			$callback = $query;
+
+			$callback($query = $this->newQuery());
+		}
+
+		if ($query instanceof Builder)
+		{
+			$bindings = $query->getBindings();
+
+			$query = $query->toSql();
+		}
+		elseif (is_string($query))
+		{
+			$bindings = [];
+		}
+		else
+		{
+			throw new \InvalidArgumentException;
+		}
+
+		return $this->selectRaw('('.$query.') as '.$this->grammar->wrap($as), $bindings);
 	}
 
 	/**
@@ -340,6 +382,34 @@ class Builder {
 	public function leftJoinWhere($table, $one, $operator, $two)
 	{
 		return $this->joinWhere($table, $one, $operator, $two, 'left');
+	}
+
+	/**
+	 * Add a right join to the query.
+	 *
+	 * @param  string  $table
+	 * @param  string  $first
+	 * @param  string  $operator
+	 * @param  string  $second
+	 * @return \Illuminate\Database\Query\Builder|static
+	 */
+	public function rightJoin($table, $first, $operator = null, $second = null)
+	{
+		return $this->join($table, $first, $operator, $second, 'right');
+	}
+
+	/**
+	 * Add a "right join where" clause to the query.
+	 *
+	 * @param  string  $table
+	 * @param  string  $first
+	 * @param  string  $operator
+	 * @param  string  $two
+	 * @return \Illuminate\Database\Query\Builder|static
+	 */
+	public function rightJoinWhere($table, $one, $operator, $two)
+	{
+		return $this->joinWhere($table, $one, $operator, $two, 'right');
 	}
 
 	/**
@@ -1577,19 +1647,12 @@ class Builder {
 	{
 		$this->backupFieldsForCount();
 
-		$columns = $this->columns;
-
 		// Because some database engines may throw errors if we leave the ordering
 		// statements on the query, we will "back them up" and remove them from
 		// the query. Once we have the count we will put them back onto this.
 		$total = $this->count();
 
 		$this->restoreFieldsForCount();
-
-		// Once the query is run we need to put the old select columns back on the
-		// instance so that the select query will run properly. Otherwise, they
-		// will be cleared, then the query will fire with all of the columns.
-		$this->columns = $columns;
 
 		return $total;
 	}
@@ -1660,12 +1723,17 @@ class Builder {
 	/**
 	 * Retrieve the "count" result of the query.
 	 *
-	 * @param  string  $column
+	 * @param  string  $columns
 	 * @return int
 	 */
-	public function count($column = '*')
+	public function count($columns = '*')
 	{
-		return (int) $this->aggregate(__FUNCTION__, array($column));
+		if ( ! is_array($columns))
+		{
+			$columns = array($columns);
+		}
+
+		return (int) $this->aggregate(__FUNCTION__, $columns);
 	}
 
 	/**
@@ -1725,12 +1793,16 @@ class Builder {
 	{
 		$this->aggregate = compact('function', 'columns');
 
+		$previousColumns = $this->columns;
+
 		$results = $this->get($columns);
 
 		// Once we have executed the query, we will reset the aggregate property so
 		// that more select queries can be executed against the database without
 		// the aggregate value getting in the way when the grammar builds it.
-		$this->columns = null; $this->aggregate = null;
+		$this->aggregate = null;
+
+		$this->columns = $previousColumns;
 
 		if (isset($results[0]))
 		{
@@ -1774,7 +1846,10 @@ class Builder {
 
 		foreach ($values as $record)
 		{
-			$bindings = array_merge($bindings, array_values($record));
+			foreach ($record as $value)
+			{
+				$bindings[] = $value;
+			}
 		}
 
 		$sql = $this->grammar->compileInsert($this, $values);

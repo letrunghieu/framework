@@ -55,6 +55,8 @@ class RoutingRouteTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('fred25', $router->dispatch(Request::create('fred', 'GET'))->getContent());
 		$this->assertEquals('fred30', $router->dispatch(Request::create('fred/30', 'GET'))->getContent());
 		$this->assertTrue($router->currentRouteNamed('foo'));
+		$this->assertTrue($router->is('foo'));
+		$this->assertFalse($router->is('bar'));
 
 		$router = $this->getRouter();
 		$router->get('foo/bar', function() { return 'hello'; });
@@ -188,6 +190,8 @@ class RoutingRouteTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('baz', $router->dispatch(Request::create('bar', 'GET'))->getContent());
 
 		$this->assertTrue($router->currentRouteUses('RouteTestControllerDispatchStub@bar'));
+		$this->assertTrue($router->uses('RouteTestControllerDispatchStub@bar'));
+		$this->assertFalse($router->uses('RouteTestControllerDispatchStub@baz'));
 	}
 
 
@@ -689,33 +693,33 @@ class RoutingRouteTest extends PHPUnit_Framework_TestCase {
 	}
 
 
-    public function testRouterFiresRoutedEvent()
-    {
-        $events = new Illuminate\Events\Dispatcher();
-        $router = new Router($events);
-        $router->get('foo/bar', function() { return ''; });
+	public function testRouterFiresRoutedEvent()
+	{
+		$events = new Illuminate\Events\Dispatcher();
+		$router = new Router($events);
+		$router->get('foo/bar', function() { return ''; });
 
-        $request = Request::create('http://foo.com/foo/bar', 'GET');
-        $route   = new Route('GET', 'foo/bar', array('http', function() {}));
+		$request = Request::create('http://foo.com/foo/bar', 'GET');
+		$route   = new Route('GET', 'foo/bar', array('http', function() {}));
 
-        $_SERVER['__router.request'] = null;
-        $_SERVER['__router.route']   = null;
+		$_SERVER['__router.request'] = null;
+		$_SERVER['__router.route']   = null;
 
-        $router->matched(function($route, $request){
-            $_SERVER['__router.request'] = $request;
-            $_SERVER['__router.route']   = $route;
-        });
+		$router->matched(function($route, $request){
+			$_SERVER['__router.request'] = $request;
+			$_SERVER['__router.route']   = $route;
+		});
 
-        $router->dispatchToRoute($request);
+		$router->dispatchToRoute($request);
 
-        $this->assertInstanceOf('Illuminate\Http\Request', $_SERVER['__router.request']);
-        $this->assertEquals($_SERVER['__router.request'], $request);
-        unset($_SERVER['__router.request']);
+		$this->assertInstanceOf('Illuminate\Http\Request', $_SERVER['__router.request']);
+		$this->assertEquals($_SERVER['__router.request'], $request);
+		unset($_SERVER['__router.request']);
 
-        $this->assertInstanceOf('Illuminate\Routing\Route', $_SERVER['__router.route']);
-        $this->assertEquals($_SERVER['__router.route']->getUri(), $route->getUri());
-        unset($_SERVER['__router.route']);
-    }
+		$this->assertInstanceOf('Illuminate\Routing\Route', $_SERVER['__router.route']);
+		$this->assertEquals($_SERVER['__router.route']->getUri(), $route->getUri());
+		unset($_SERVER['__router.route']);
+	}
 
 
 	protected function getRouter()

@@ -402,11 +402,11 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 	{
 		if (isset($options['only']))
 		{
-			return array_intersect($defaults, $options['only']);
+			return array_intersect($defaults, (array) $options['only']);
 		}
 		elseif (isset($options['except']))
 		{
-			return array_diff($defaults, $options['except']);
+			return array_diff($defaults, (array) $options['except']);
 		}
 
 		return $defaults;
@@ -1551,7 +1551,7 @@ class Router implements HttpKernelInterface, RouteFiltererInterface {
 	 * @param  dynamic  string
 	 * @return bool
 	 */
-	public function isAction()
+	public function uses()
 	{
 		foreach (func_get_args() as $pattern)
 		{

@@ -70,6 +70,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($query->get(), array('results'));
 	}
 
+
 	public function testSelectWithCachingForever()
 	{
 		$cache = m::mock('stdClass');
@@ -87,6 +88,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 
 		$this->assertEquals($query->get(), array('results'));
 	}
+
 
 	public function testSelectWithCachingAndTags()
 	{
@@ -109,6 +111,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 
 		$this->assertEquals($query->get(), array('results'));
 	}
+
 
 	public function testBasicAlias()
 	{
@@ -169,6 +172,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals(array(0 => 2014), $builder->getBindings());
 	}
 
+
 	public function testWhereDayPostgres()
 	{
 		$builder = $this->getPostgresBuilder();
@@ -186,6 +190,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals(array(0 => 5), $builder->getBindings());
 	}
 
+
 	public function testWhereYearPostgres()
 	{
 		$builder = $this->getPostgresBuilder();
@@ -193,6 +198,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('select * from "users" where year("created_at") = ?', $builder->toSql());
 		$this->assertEquals(array(0 => 2014), $builder->getBindings());
 	}
+
 
 	public function testWhereDaySqlite()
 	{
@@ -220,6 +226,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals(array(0 => 2014), $builder->getBindings());
 	}
 
+
 	public function testWhereDaySqlServer()
 	{
 		$builder = $this->getPostgresBuilder();
@@ -236,6 +243,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('select * from "users" where month("created_at") = ?', $builder->toSql());
 		$this->assertEquals(array(0 => 5), $builder->getBindings());
 	}
+
 
 	public function testWhereYearSqlServer()
 	{
@@ -276,6 +284,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('select * from "users" where id = ? or email = ?', $builder->toSql());
 		$this->assertEquals(array(0 => 1, 1 => 'foo'), $builder->getBindings());
 	}
+
 
 	public function testRawOrWheres()
 	{
@@ -339,6 +348,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals(array(0 => 1, 1 => 2), $builder->getBindings());
 	}
 
+
 	public function testMultipleUnions()
 	{
 		$builder = $this->getBuilder();
@@ -349,6 +359,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals(array(0 => 1, 1 => 2, 2 => 3), $builder->getBindings());
 	}
 
+
 	public function testMultipleUnionAlls()
 	{
 		$builder = $this->getBuilder();
@@ -358,6 +369,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals('select * from "users" where "id" = ? union all select * from "users" where "id" = ? union all select * from "users" where "id" = ?', $builder->toSql());
 		$this->assertEquals(array(0 => 1, 1 => 2, 2 => 3), $builder->getBindings());
 	}
+
 
 	public function testSubSelectWhereIns()
 	{
@@ -768,6 +780,51 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 	}
 
 
+	public function testAggregateResetFollowedByGet()
+	{
+		$builder = $this->getBuilder();
+		$builder->getConnection()->shouldReceive('select')->once()->with('select count(*) as aggregate from "users"', array())->andReturn(array(array('aggregate' => 1)));
+		$builder->getConnection()->shouldReceive('select')->once()->with('select sum("id") as aggregate from "users"', array())->andReturn(array(array('aggregate' => 2)));
+		$builder->getConnection()->shouldReceive('select')->once()->with('select "column1", "column2" from "users"', array())->andReturn(array(array('column1' => 'foo', 'column2' => 'bar')));
+		$builder->getProcessor()->shouldReceive('processSelect')->andReturnUsing(function($builder, $results) { return $results; });
+		$builder->from('users')->select('column1', 'column2');
+		$count = $builder->count();
+		$this->assertEquals(1, $count);
+		$sum = $builder->sum('id');
+		$this->assertEquals(2, $sum);
+		$result = $builder->get();
+		$this->assertEquals(array(array('column1' => 'foo', 'column2' => 'bar')), $result);
+	}
+
+
+	public function testAggregateResetFollowedBySelectGet()
+	{
+		$builder = $this->getBuilder();
+		$builder->getConnection()->shouldReceive('select')->once()->with('select count("column1") as aggregate from "users"', array())->andReturn(array(array('aggregate' => 1)));
+		$builder->getConnection()->shouldReceive('select')->once()->with('select "column2", "column3" from "users"', array())->andReturn(array(array('column2' => 'foo', 'column3' => 'bar')));
+		$builder->getProcessor()->shouldReceive('processSelect')->andReturnUsing(function($builder, $results) { return $results; });
+		$builder->from('users');
+		$count = $builder->count('column1');
+		$this->assertEquals(1, $count);
+		$result = $builder->select('column2', 'column3')->get();
+		$this->assertEquals(array(array('column2' => 'foo', 'column3' => 'bar')), $result);
+	}
+
+
+	public function testAggregateResetFollowedByGetWithColumns()
+	{
+		$builder = $this->getBuilder();
+		$builder->getConnection()->shouldReceive('select')->once()->with('select count("column1") as aggregate from "users"', array())->andReturn(array(array('aggregate' => 1)));
+		$builder->getConnection()->shouldReceive('select')->once()->with('select "column2", "column3" from "users"', array())->andReturn(array(array('column2' => 'foo', 'column3' => 'bar')));
+		$builder->getProcessor()->shouldReceive('processSelect')->andReturnUsing(function($builder, $results) { return $results; });
+		$builder->from('users');
+		$count = $builder->count('column1');
+		$this->assertEquals(1, $count);
+		$result = $builder->get(array('column2', 'column3'));
+		$this->assertEquals(array(array('column2' => 'foo', 'column3' => 'bar')), $result);
+	}
+
+
 	public function testInsertMethod()
 	{
 		$builder = $this->getBuilder();
@@ -1003,6 +1060,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 		$builder->noValidMethodHere();
 	}
 
+
 	public function setupCacheTestQuery($cache, $driver)
 	{
 		$connection = m::mock('Illuminate\Database\ConnectionInterface');
@@ -1116,6 +1174,27 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase {
 		$otherBuilder->addBinding('bar', 'where');
 		$builder->mergeBindings($otherBuilder);
 		$this->assertEquals(array('foo', 'bar', 'baz'), $builder->getBindings());
+	}
+
+
+	public function testSubSelect()
+	{
+		$expectedSql = 'select "foo", "bar", (select "baz" from "two" where "subkey" = ?) as "sub" from "one" where "key" = ?';
+		$expectedBindings = ['subval', 'val'];
+
+		$builder = $this->getPostgresBuilder();
+		$builder->from('one')->select(['foo', 'bar'])->where('key', '=', 'val');
+		$builder->selectSub(function($query) { $query->from('two')->select('baz')->where('subkey', '=', 'subval'); }, 'sub');
+		$this->assertEquals($expectedSql, $builder->toSql());
+		$this->assertEquals($expectedBindings, $builder->getBindings());
+
+		$builder = $this->getPostgresBuilder();
+		$builder->from('one')->select(['foo', 'bar'])->where('key', '=', 'val');
+		$subBuilder = $this->getPostgresBuilder();
+		$subBuilder->from('two')->select('baz')->where('subkey', '=', 'subval');
+		$builder->selectSub($subBuilder, 'sub');
+		$this->assertEquals($expectedSql, $builder->toSql());
+		$this->assertEquals($expectedBindings, $builder->getBindings());
 	}
 
 
