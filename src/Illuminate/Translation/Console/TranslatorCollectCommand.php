@@ -29,6 +29,46 @@ class TranslatorCollectCommand extends Command {
 	protected $files;
 
 	/**
+	 * The blade compiler instance
+	 *
+	 * @var \Illuminate\View\Compilers\BladeCompiler
+	 */
+	protected $compiler;
+
+	/**
+	 * The translator instance
+	 *
+	 * @var \Illuminate\Translation\Translator
+	 */
+	protected $translator;
+
+	/**
+	 * Current application locale
+	 *
+	 * @var string
+	 */
+	protected $locale;
+
+	/**
+	 * Collections of missed localization keys
+	 *
+	 * @var \Illuminate\Support\Collection
+	 */
+	protected $missedKeys;
+
+	/**
+	 * List of localization commands
+	 *
+	 * @var array
+	 */
+	protected $functions = [
+		'trans' => 'trans',
+		'choice' => 'choice',
+		'\\Illuminate\\Support\\Facades\\Lang::get' => 'trans',
+		'\\Illuminate\\Support\\Facades\\Lang::choice' => 'choice',
+	];
+
+	/**
 	 * Create a instance.
 	 * 
 	 * @param Application $laravel current laravel application instance
@@ -40,6 +80,28 @@ class TranslatorCollectCommand extends Command {
 		parent::__construct();
 		$this->setLaravel($laravel);
 		$this->files = $this->getFileSystem();
+		$this->translator = $this->getTranslator();
+		$this->compiler = $this->getBladeCompiler();
+	}
+
+	/**
+	 * Execute the console command.
+	 *
+	 * @return void
+	 */
+	public function fire()
+	{
+		$this->locale = $this->getCurrentLocale();
+		$this->missedKeys = new \Illuminate\Support\Collection();
+
+		$scanFolders = [
+			'controllers', 'views'
+		];
+
+		foreach ($scanFolders as $folder)
+		{
+			$this->getLocalizationStuffs($this->laravel['path'] . '/' . $folder);
+		}
 	}
 
 	/**
@@ -93,81 +155,128 @@ class TranslatorCollectCommand extends Command {
 		}
 	}
 
-	protected function getLocalizationStuffs($folder)
+	/**
+	 * Get the current blade compiler registered in the application
+	 * 
+	 * @return \Illuminate\View\Compilers\BladeCompiler
+	 * @throws \RuntimeException no blade compiler registered in the application
+	 */
+	protected function getBladeCompiler()
 	{
-		
-	}
-
-	protected function parseFile($filepath)
-	{
-		$foundLines = [];
-
-		$fileContent = $this->files->get($filepath);
-
-		foreach (token_get_all($fileContent) as $token)
+		if ($this->laravel['blade.compiler'])
 		{
-			$result = $this->parseToken($token);
-		}
-
-		return $foundLines;
-	}
-
-	protected function parseToken($token)
-	{
-		if (is_array($token))
+			return $this->laravel['blade.compiler'];
+		} else
 		{
-			list($id, $content) = $token;
-			
-			switch ($id)
-			{
-				case T_INLINE_HTML:
-					return $this->parseBladeCalls($content);
-			}
+			throw new \RuntimeException('There is no blade compiler registered.');
 		}
-
-		return false;
-	}
-	
-	protected function parseBladeCalls($content)
-	{
-		$patterns = array();
-		
-		$matches = null;
-		$count = preg_match_all('/\B@(?:lang|choice)(?:[ \t]*)(\( ( (?>[^()]+) | (?1) )* \))?/x', $content, $matches);
-		
-		if($count)
-		{
-			for($i = 0; $i < $count; $i++)
-			{
-				$key = $this->extractLocalizationKey($matches[1][$i]);
-				if ($key)
-				{
-					$patterns[] = $key;
-				}
-			}
-		}
-		
-		return $patterns;
-	}
-	
-	protected function extractLocalizationKey($string)
-	{
-		$matches = null;
-		if (preg_match('/\(\s*(["\']) ( (?:\\{2})* |(?:.*?[^\\](?:\\{2})*) )\1 (?:,(?:.*))?\s*\)/x', $string, $matches))
-		{
-			return $matches[2];
-		}
-		return false;
 	}
 
 	/**
-	 * Execute the console command.
-	 *
+	 * Collect all localization keys in files in a folder
+	 * 
+	 * @param string $folder
+	 * 
 	 * @return void
 	 */
-	public function fire()
+	protected function getLocalizationStuffs($folder)
 	{
+		$files = $this->files->allFiles($folder);
+		foreach ($files as $file)
+		{
+			if ($this->files->extension($file) == 'php')
+			{
+				$this->parseFile($file);
+			}
+		}
+	}
+
+	/**
+	 * Parse a file to get localization keys
+	 * 
+	 * @param string $filepath
+	 * 
+	 * @return void
+	 */
+	protected function parseFile($filepath)
+	{
+		$fileContent = $this->files->get($filepath);
+
+		$compiledContent = $this->compiler->compileString($fileContent);
 		
+		$this->parseContent($compiledContent);
+	}
+
+	/**
+	 * Parse the string with tokenization
+	 * 
+	 * @param string $content
+	 * 
+	 * @return void
+	 */
+	protected function parseContent($content)
+	{
+		$tokens = token_get_all($content);
+		$count = count($tokens);
+		$functions = [];
+		$bufferFunctions = [];
+
+		for ($i = 0; $i < $count; $i++)
+		{
+			$value = $tokens[$i];
+			if (is_string($value))
+			{
+				if ($value == ')' && isset($bufferFunctions[0]))
+				{
+					$functions[] = array_shift($bufferFunctions);
+				}
+
+				continue;
+			}
+
+			if (isset($bufferFunctions[0]) && ($value[0] === T_CONSTANT_ENCAPSED_STRING))
+			{
+				$val = $value[1];
+				if ($val[0] === '"')
+				{
+					$val = str_replace('\\"', '"', $val);
+				} else
+				{
+					$val = str_replace("\\'", "'", $val);
+				}
+
+				$bufferFunctions[0][] = substr($val, 1, -1);
+
+				continue;
+			}
+
+			if (($value[0] === T_STRING) && is_string($tokens[$i + 1]) && ($tokens[$i + 1] === '('))
+			{
+				array_unshift($bufferFunctions, array($value[1], $value[2]));
+				$i++;
+
+				continue;
+			}
+		}
+
+		foreach ($functions as $func)
+		{
+			$funtion = array_shift($func);
+
+			if (!isset($this->functions[$funtion]))
+			{
+				continue;
+			}
+
+			array_shift($func);
+
+			$key = $func[0];
+
+			if (!$this->translator->has($key, $this->locale))
+			{
+				$this->missedKeys->push($key);
+			}
+		}
 	}
 
 }
