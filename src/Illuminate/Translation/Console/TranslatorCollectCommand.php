@@ -4,6 +4,7 @@ namespace Illuminate\Translation\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Foundation\Application;
+use Symfony\Component\Console\Input\InputArgument;
 
 class TranslatorCollectCommand extends Command {
 
@@ -120,6 +121,18 @@ class TranslatorCollectCommand extends Command {
 	}
 
 	/**
+	 * Get the console command arguments.
+	 *
+	 * @return array
+	 */
+	protected function getArguments()
+	{
+		return array(
+			array('locale', InputArgument::OPTIONAL, 'The target locale, default to application locale.'),
+		);
+	}
+
+	/**
 	 * Get current locale of the application
 	 * 
 	 * @return string current locale
@@ -127,6 +140,10 @@ class TranslatorCollectCommand extends Command {
 	 */
 	protected function getCurrentLocale()
 	{
+		if ($this->argument('locale'))
+		{
+			return $this->argument('locale');
+		}
 		if ($this->laravel['config']['app.locale'])
 		{
 			return $this->laravel['config']['app.locale'];
@@ -359,5 +376,5 @@ class TranslatorCollectCommand extends Command {
 
 		$this->info("File: '{$file}' updated.");
 	}
-	
+
 }

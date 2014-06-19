@@ -182,5 +182,10 @@ class TranslatorCollectCommandStuff extends Illuminate\Translation\Console\Trans
 	{
 		return true;
 	}
+	
+	protected function getCurrentLocale()
+	{
+		return 'en';
+	}
 
 }
