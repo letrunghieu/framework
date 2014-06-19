@@ -62,10 +62,20 @@ class TranslatorCollectCommand extends Command {
 	 * @var array
 	 */
 	protected $functions = [
-		'trans' => 'trans',
-		'choice' => 'choice',
-		'\\Illuminate\\Support\\Facades\\Lang::get' => 'trans',
-		'\\Illuminate\\Support\\Facades\\Lang::choice' => 'choice',
+		'trans' => 'function',
+		'trans_choice' => 'function',
+		'get' => 'method',
+		'choice' => 'method',
+	];
+
+	/**
+	 * List of methods of Translator
+	 *
+	 * @var array
+	 */
+	protected $methods = [
+		'\\Illuminate\\Support\\Facades\\Lang::get',
+		'\\Illuminate\\Support\\Facades\\Lang::choice'
 	];
 
 	/**
@@ -92,7 +102,7 @@ class TranslatorCollectCommand extends Command {
 	public function fire()
 	{
 		$this->locale = $this->getCurrentLocale();
-		$this->missedKeys = new \Illuminate\Support\Collection();
+		$this->missedKeys = [];
 
 		$scanFolders = [
 			'controllers', 'views'
@@ -101,6 +111,11 @@ class TranslatorCollectCommand extends Command {
 		foreach ($scanFolders as $folder)
 		{
 			$this->getLocalizationStuffs($this->laravel['path'] . '/' . $folder);
+		}
+
+		foreach ($this->missedKeys as $group => $content)
+		{
+			$this->updateLocalizationKeys($group, $content);
 		}
 	}
 
@@ -184,9 +199,10 @@ class TranslatorCollectCommand extends Command {
 		$files = $this->files->allFiles($folder);
 		foreach ($files as $file)
 		{
-			if ($this->files->extension($file) == 'php')
+			/* @var $file \Symfony\Component\Finder\SplFileInfo */
+			if ($file->getExtension() == 'php')
 			{
-				$this->parseFile($file);
+				$this->parseFile($file->getRealPath());
 			}
 		}
 	}
@@ -203,7 +219,7 @@ class TranslatorCollectCommand extends Command {
 		$fileContent = $this->files->get($filepath);
 
 		$compiledContent = $this->compiler->compileString($fileContent);
-		
+
 		$this->parseContent($compiledContent);
 	}
 
@@ -252,7 +268,7 @@ class TranslatorCollectCommand extends Command {
 
 			if (($value[0] === T_STRING) && is_string($tokens[$i + 1]) && ($tokens[$i + 1] === '('))
 			{
-				array_unshift($bufferFunctions, array($value[1], $value[2]));
+				array_unshift($bufferFunctions, [$value[1], $value[2], $i]);
 				$i++;
 
 				continue;
@@ -270,13 +286,78 @@ class TranslatorCollectCommand extends Command {
 
 			array_shift($func);
 
+			$tokenIndex = array_shift($func);
+
+			if ($this->functions[$funtion] === 'method')
+			{
+				$fromTokenIndex = $tokenIndex - 10;
+				if (!isset($tokens[$fromTokenIndex]) || !is_array($tokens[$fromTokenIndex]) || ($tokens[$fromTokenIndex][0] !== T_WHITESPACE))
+				{
+					// If the previous 10th token is not a space
+					continue;
+				} else if (!$this->isTranslatorCall($tokens, $fromTokenIndex, $tokenIndex))
+				{
+					// If the string made from last 10 tokens is not a method in  the Translator
+					continue;
+				}
+			}
+
 			$key = $func[0];
 
 			if (!$this->translator->has($key, $this->locale))
 			{
-				$this->missedKeys->push($key);
+				if (strpos($key, '.') > 1)
+				{
+					array_set($this->missedKeys, $key, '');
+				}
 			}
 		}
+	}
+
+	/**
+	 * Is this token a method from Translator
+	 * 
+	 * @param array $tokens  list of original tokens
+	 * @param int $fromToken the index of first token 
+	 * @param int $toToken   the index of last tokan
+	 * 
+	 * @return boolean
+	 */
+	protected function isTranslatorCall($tokens, $fromToken, $toToken)
+	{
+		$result = "";
+
+		for ($i = $fromToken; $i <= $toToken; $i++)
+		{
+			if (is_string($tokens[$i]))
+			{
+				$result .= $tokens[$i];
+			} else
+			{
+				$result .= $tokens[$i][1];
+			}
+		}
+		return in_array(trim($result), $this->methods);
+	}
+
+	protected function updateLocalizationKeys($group, &$newKeys)
+	{
+		$currentKeys = $this->translator->getLoader()->load($this->locale, $group);
+		$mergedKeys = array_merge_recursive($currentKeys, $newKeys);
+
+		$langPath = $this->translator->getLoader()->getPath();
+		$folder = "{$langPath}/{$this->locale}";
+		$file = "{$folder}/{$group}.php";
+
+		if (!$this->files->exists($folder))
+		{
+			$this->files->makeDirectory($folder, 0755, true);
+		}
+
+		$fileContent = "<?php" . PHP_EOL . "return " . var_export($mergedKeys, true) . ";" . PHP_EOL;
+		$this->files->put($file, $fileContent);
+
+		$this->info("File: '{$file}' updated.");
 	}
 
 }
