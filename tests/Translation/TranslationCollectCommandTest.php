@@ -36,13 +36,20 @@ class TranslationCollectCommandTest extends PHPUnit_Framework_TestCase {
 	public function testLanguageFilesIsUpdated()
 	{
 		$collector = $this->getCollectorObject();
+		
+		$defaultData = "<?php return array('string without params' => 'foo', 'keys with params' => '');";
+		if (!file_exists($this->folder))
+		{
+			mkdir($this->folder);
+		}
+		file_put_contents($this->file, $defaultData);
 
 		$collector->fire();
 
 		$content = require $this->file;
 
 		$expected = array(
-			'string without params' => '',
+			'string without params' => 'foo',
 			'keys with params' => '',
 			'choice without params' => '',
 			'choice with params' => '',
@@ -81,8 +88,6 @@ class TranslationCollectCommandTest extends PHPUnit_Framework_TestCase {
 		$files->shouldReceive('allFiles')->with('/path/views')->andReturn([$viewFile]);
 		$files->shouldReceive('get')->with('/path/controllers/FooController.php')->andReturn($this->getControllerPhpContent());
 		$files->shouldReceive('get')->with('/view/view.blade.php')->andReturn($this->getViewPhpContent());
-
-		$files->shouldReceive('exists')->andReturn(false);
 
 		$config->shouldReceive('offsetGet')->with('app.locale')->andReturn('en');
 		$laravel->shouldReceive('offsetGet')->with('files')->andReturn($files);

@@ -343,7 +343,7 @@ class TranslatorCollectCommand extends Command {
 	protected function updateLocalizationKeys($group, &$newKeys)
 	{
 		$currentKeys = $this->translator->getLoader()->load($this->locale, $group);
-		$mergedKeys = array_merge_recursive($currentKeys, $newKeys);
+		$mergedKeys = array_merge_recursive_distinct($currentKeys, $newKeys);
 
 		$langPath = $this->translator->getLoader()->getPath();
 		$folder = "{$langPath}/{$this->locale}";
@@ -359,5 +359,5 @@ class TranslatorCollectCommand extends Command {
 
 		$this->info("File: '{$file}' updated.");
 	}
-
+	
 }
