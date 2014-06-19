@@ -128,5 +128,15 @@ class FileLoader implements LoaderInterface {
 	{
 		$this->hints[$namespace] = $hint;
 	}
+	
+	/**
+	 * Get current path where localized messages are loaded
+	 * 
+	 * @return string
+	 */
+	public function getPath()
+	{
+		return $this->path;
+	}
 
 }

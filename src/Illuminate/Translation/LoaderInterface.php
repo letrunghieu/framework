@@ -20,5 +20,12 @@ interface LoaderInterface {
 	 * @return void
 	 */
 	public function addNamespace($namespace, $hint);
+	
+	/**
+	 * Get current path where localized messages are loaded
+	 * 
+	 * @return string
+	 */
+	public function getPath();
 
 }
